@@ -34,7 +34,20 @@ int main(void) {
     Generate_vector(local_x, local_n, n, "x", my_rank, comm);
     Generate_vector(local_y, local_n, n, "y", my_rank, comm);
 
+    // Añadimos esto para medir el tiempo
+    double start_time, end_time, elapsed_time;
+    if (my_rank == 0) {
+        start_time = MPI_Wtime();
+    }
+
     Parallel_vector_sum(local_x, local_y, local_z, local_n);
+
+    // Añadimos esto para medir el tiempo
+    if (my_rank == 0) {
+        end_time = MPI_Wtime();
+        elapsed_time = end_time - start_time;
+        printf("Time elapsed: %f seconds\n", elapsed_time);
+    }
 
     Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
     Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
@@ -82,7 +95,6 @@ void Allocate_vectors(double** local_x_pp, double** local_y_pp,
         comm);
 }
 
-// ... (Código anterior sin cambios) ...
 
 void Generate_vector(double local_a[], int local_n, int n,
     char vec_name[], int my_rank, MPI_Comm comm) {
@@ -117,7 +129,7 @@ void Print_first_and_last_elements(
         printf("%s\n", title);
         for (i = 0; i < 10; i++)
             printf("%f ", b[i]);
-        printf("... ");
+        printf("\nlast 10 elements\n");
         for (i = n - 10; i < n; i++)
             printf("%f ", b[i]);
         printf("\n");

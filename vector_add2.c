@@ -22,13 +22,24 @@ int main(void) {
    int n = 100000;
    double *x, *y, *z;
 
+    //añadiendo el apartado para medicion de tiempos
+   clock_t start_time, end_time;
+   double elapsed_time;
+
    Allocate_vectors(&x, &y, &z, n);
    
    srand(time(NULL));
    Generate_vector(x, n);
    Generate_vector(y, n);
    
+   //medicion de time
+   start_time = clock();
+
    Vector_sum(x, y, z, n);
+
+   end_time = clock();
+   elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+   printf("Time elapsed: %f seconds\n", elapsed_time);
 
    Print_first_and_last_elements(x, n, "Vector x");
    Print_first_and_last_elements(y, n, "Vector y");
