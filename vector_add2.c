@@ -18,27 +18,34 @@ void Print_first_and_last_elements(double b[], int n, char title[]);
 void Vector_sum(double x[], double y[], double z[], int n);
 
 /*---------------------------------------------------------------------*/
-int main(void) {
-   int n = 100000;
-   double *x, *y, *z;
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
-    //añadiendo el apartado para medicion de tiempos
+void Allocate_vectors(double** x_pp, double** y_pp, double** z_pp, int n);
+void Generate_vector(double a[], int n);
+void Print_first_and_last_elements(double b[], int n, char title[]);
+void Vector_sum(double x[], double y[], double z[], int n);
+
+int main(void) {
+   int n = 625000000; // Valor estimado de n
+   double *x, *y, *z;
    clock_t start_time, end_time;
    double elapsed_time;
 
    Allocate_vectors(&x, &y, &z, n);
-   
+
    srand(time(NULL));
+
    Generate_vector(x, n);
    Generate_vector(y, n);
-   
-   //medicion de time
+
    start_time = clock();
-
    Vector_sum(x, y, z, n);
-
    end_time = clock();
+
    elapsed_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+
    printf("Time elapsed: %f seconds\n", elapsed_time);
 
    Print_first_and_last_elements(x, n, "Vector x");
@@ -50,9 +57,7 @@ int main(void) {
    free(z);
 
    return 0;
-}  /* main */
-
-
+} /* main */
 void Allocate_vectors(
       double**  x_pp  /* out */, 
       double**  y_pp  /* out */, 

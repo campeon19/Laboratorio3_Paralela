@@ -25,7 +25,7 @@ int main(void) {
     MPI_Comm_size(comm, &comm_sz);
     MPI_Comm_rank(comm, &my_rank);
 
-    n = 100000;
+    n = 625000000; // Valor actualizado de n
     local_n = n/comm_sz;
 
     Allocate_vectors(&local_x, &local_y, &local_z, local_n, comm);
@@ -49,9 +49,9 @@ int main(void) {
         printf("Time elapsed: %f seconds\n", elapsed_time);
     }
 
-    Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
-    Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
-    Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm);
+    // Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
+    // Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
+    // Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm);
 
     free(local_x);
     free(local_y);
@@ -120,22 +120,23 @@ void Print_first_and_last_elements(
     int       my_rank    /* in */,
     MPI_Comm  comm       /* in */) {
 
-    double* b = NULL;
+    double first_elements[10], last_elements[10];
     int i;
 
+    for (i = 0; i < 10; i++) {
+        first_elements[i] = local_b[i];
+        last_elements[i] = local_b[local_n - 10 + i];
+    }
+
     if (my_rank == 0) {
-        b = malloc(n * sizeof(double));
-        MPI_Gather(local_b, local_n, MPI_DOUBLE, b, local_n, MPI_DOUBLE, 0, comm);
         printf("%s\n", title);
+        printf("First 10 elements: ");
         for (i = 0; i < 10; i++)
-            printf("%f ", b[i]);
-        printf("\nlast 10 elements\n");
-        for (i = n - 10; i < n; i++)
-            printf("%f ", b[i]);
+            printf("%f ", first_elements[i]);
+        printf("\nLast 10 elements: ");
+        for (i = 0; i < 10; i++)
+            printf("%f ", last_elements[i]);
         printf("\n");
-        free(b);
-    } else {
-        MPI_Gather(local_b, local_n, MPI_DOUBLE, b, local_n, MPI_DOUBLE, 0, comm);
     }
 }
 
