@@ -49,9 +49,9 @@ int main(void) {
         printf("Time elapsed: %f seconds\n", elapsed_time);
     }
 
-    // Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
-    // Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
-    // Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm);
+    Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
+    Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
+    Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm);
 
     free(local_x);
     free(local_y);
