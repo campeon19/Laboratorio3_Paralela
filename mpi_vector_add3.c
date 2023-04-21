@@ -8,9 +8,17 @@ void Check_for_error(int local_ok, char fname[], char message[],
 void Allocate_vectors(double **local_x_pp, double **local_y_pp,
                       double **local_z_pp, double **local_scalar_mult1_pp, double **local_scalar_mult2_pp, int local_n, MPI_Comm comm);
 void Generate_vector(double local_a[], int local_n, int n,
-                     char vec_name[], int my_rank, MPI_Comm comm);
-void Print_first_and_last_elements(double local_b[], int local_n, int n,
-                                   char title[], int my_rank, MPI_Comm comm);
+                     char vec_name[], int my_rank, int comm_sz, MPI_Comm comm);
+
+void Print_first_and_last_elements(
+    double local_b[] /* in */,
+    int local_n /* in */,
+    int n /* in */,
+    char title[] /* in */,
+    int my_rank /* in */,
+    int comm_sz /* in */,
+    MPI_Comm comm /* in */);
+
 void Parallel_vector_sum(double local_x[], double local_y[],
                          double local_z[], int local_n);
 void Parallel_dot_product(double local_x[], double local_y[],
@@ -36,13 +44,16 @@ int main(void)
     MPI_Comm_rank(comm, &my_rank);
 
     n = 5; // Valor actualizado de n
-    local_n = n / comm_sz;
+    local_n = (n / comm_sz) + (my_rank < (n % comm_sz) ? 1 : 0);
 
     Allocate_vectors(&local_x, &local_y, &local_z, &local_scalar_mult1, &local_scalar_mult2, local_n, comm);
 
     srand(time(NULL) + my_rank);
-    Generate_vector(local_x, local_n, n, "x", my_rank, comm);
-    Generate_vector(local_y, local_n, n, "y", my_rank, comm);
+    Generate_vector(local_x, local_n, n, "x", my_rank, comm_sz, comm);
+    Generate_vector(local_y, local_n, n, "y", my_rank, comm_sz, comm);
+
+
+
 
     // Añadimos esto para medir el tiempo
     double start_time, end_time, elapsed_time;
@@ -66,17 +77,16 @@ int main(void)
         printf("Time elapsed: %f seconds\n", elapsed_time);
     }
 
-    Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm);
-    Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm);
-    Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm);
+    Print_first_and_last_elements(local_x, local_n, n, "Vector x", my_rank, comm_sz, comm);
+    Print_first_and_last_elements(local_y, local_n, n, "Vector y", my_rank, comm_sz, comm);
+    Print_first_and_last_elements(local_z, local_n, n, "The sum is", my_rank, comm_sz, comm);
 
     if (my_rank == 0)
     {
         printf("The scalar is %d \n", scalar);
     }
-    Print_first_and_last_elements(local_scalar_mult1, local_n, n, "The scalar multiplication of x is", my_rank, comm);
-    Print_first_and_last_elements(local_scalar_mult2, local_n, n, "The scalar multiplication of y is", my_rank, comm);
-
+    Print_first_and_last_elements(local_scalar_mult1, local_n, n, "The scalar multiplication of x is", my_rank, comm_sz, comm);
+    Print_first_and_last_elements(local_scalar_mult2, local_n, n, "The scalar multiplication of y is", my_rank, comm_sz, comm);
     if (my_rank == 0)
     {
         printf("The dot product is %f \n", *local_dot_p);
@@ -136,24 +146,35 @@ void Allocate_vectors(double **local_x_pp, double **local_y_pp,
 }
 
 void Generate_vector(double local_a[], int local_n, int n,
-                     char vec_name[], int my_rank, MPI_Comm comm)
+                     char vec_name[], int my_rank, int comm_sz, MPI_Comm comm) 
+   
 {
     double *a = NULL;
     int i;
+    int *send_counts = malloc(comm_sz * sizeof(int));
+    int *displs = malloc(comm_sz * sizeof(int));
 
     if (my_rank == 0)
     {
         a = malloc(n * sizeof(double));
         for (i = 0; i < n; i++)
             a[i] = rand() % 100 + 1;
-        MPI_Scatter(a, local_n, MPI_DOUBLE, local_a, local_n, MPI_DOUBLE, 0, comm);
+
+        for (i = 0; i < comm_sz; i++) {
+            send_counts[i] = (n / comm_sz) + (i < (n % comm_sz) ? 1 : 0);
+            displs[i] = i * (n / comm_sz) + (i < (n % comm_sz) ? i : n % comm_sz);
+        }
+        MPI_Scatterv(a, send_counts, displs, MPI_DOUBLE, local_a, local_n, MPI_DOUBLE, 0, comm);
         free(a);
     }
     else
     {
-        MPI_Scatter(a, local_n, MPI_DOUBLE, local_a, local_n, MPI_DOUBLE, 0, comm);
+        MPI_Scatterv(a, send_counts, displs, MPI_DOUBLE, local_a, local_n, MPI_DOUBLE, 0, comm);
     }
+    free(send_counts);
+    free(displs);
 }
+
 
 void Print_first_and_last_elements(
     double local_b[] /* in */,
@@ -161,18 +182,26 @@ void Print_first_and_last_elements(
     int n /* in */,
     char title[] /* in */,
     int my_rank /* in */,
+    int comm_sz /* in */,
     MPI_Comm comm /* in */)
 {
 
     double *full_b = NULL;
     int i;
+    int *recv_counts = malloc(comm_sz * sizeof(int));
+    int *displs = malloc(comm_sz * sizeof(int));
 
     if (my_rank == 0)
     {
         full_b = malloc(n * sizeof(double));
     }
 
-    MPI_Gather(local_b, local_n, MPI_DOUBLE, full_b, local_n, MPI_DOUBLE, 0, comm);
+    for (i = 0; i < comm_sz; i++) {
+        recv_counts[i] = (n / comm_sz) + (i < (n % comm_sz) ? 1 : 0);
+        displs[i] = i * (n / comm_sz) + (i < (n % comm_sz) ? i : n % comm_sz);
+    }
+
+    MPI_Gatherv(local_b, local_n, MPI_DOUBLE, full_b, recv_counts, displs, MPI_DOUBLE, 0, comm);
 
     if (my_rank == 0)
     {
@@ -185,7 +214,10 @@ void Print_first_and_last_elements(
         free(full_b);
     }
 
+    free(recv_counts);
+    free(displs);
 }
+
 
 void Parallel_vector_sum(double local_x[], double local_y[],
                          double local_z[], int local_n)
