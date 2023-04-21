@@ -14,14 +14,17 @@ void Print_first_and_last_elements(double local_b[], int local_n, int n,
 void Parallel_vector_sum(double local_x[], double local_y[],
                          double local_z[], int local_n);
 void Parallel_dot_product(double local_x[], double local_y[],
-                          int local_dot_p, int local_n);
+                          double* local_dot_p, int local_n, MPI_Comm comm);
+
 void Parallel_scalar_mult(double local_x[],
                           double local_scalar_mult[], int scalar, int local_n);
 
 int main(void)
 {
     int n, local_n;
-    int comm_sz, my_rank, *local_dot_p;
+    int comm_sz, my_rank;
+    double *local_dot_p;
+
     double *local_x, *local_y, *local_z, *local_scalar_mult1, *local_scalar_mult2;
     int scalar = rand() % 100 + 1;
     local_dot_p = malloc(sizeof(int));
@@ -32,7 +35,7 @@ int main(void)
     MPI_Comm_size(comm, &comm_sz);
     MPI_Comm_rank(comm, &my_rank);
 
-    n = 100; // Valor actualizado de n
+    n = 5; // Valor actualizado de n
     local_n = n / comm_sz;
 
     Allocate_vectors(&local_x, &local_y, &local_z, &local_scalar_mult1, &local_scalar_mult2, local_n, comm);
@@ -49,7 +52,9 @@ int main(void)
     }
 
     Parallel_vector_sum(local_x, local_y, local_z, local_n);
-    Parallel_dot_product(local_x, local_y, local_dot_p, local_n);
+    Parallel_dot_product(local_x, local_y, local_dot_p, local_n, comm);
+
+
     Parallel_scalar_mult(local_x, local_scalar_mult1, scalar, local_n);
     Parallel_scalar_mult(local_y, local_scalar_mult2, scalar, local_n);
 
@@ -74,8 +79,9 @@ int main(void)
 
     if (my_rank == 0)
     {
-        printf("The dot product is %d \n", local_dot_p);
+        printf("The dot product is %f \n", *local_dot_p);
     }
+
 
     free(local_x);
     free(local_y);
@@ -158,26 +164,27 @@ void Print_first_and_last_elements(
     MPI_Comm comm /* in */)
 {
 
-    double first_elements[10], last_elements[10];
+    double *full_b = NULL;
     int i;
 
-    for (i = 0; i < 10; i++)
+    if (my_rank == 0)
     {
-        first_elements[i] = local_b[i];
-        last_elements[i] = local_b[local_n - 10 + i];
+        full_b = malloc(n * sizeof(double));
     }
+
+    MPI_Gather(local_b, local_n, MPI_DOUBLE, full_b, local_n, MPI_DOUBLE, 0, comm);
 
     if (my_rank == 0)
     {
         printf("%s\n", title);
-        printf("First 10 elements: ");
-        for (i = 0; i < 10; i++)
-            printf("%f ", first_elements[i]);
-        printf("\nLast 10 elements: ");
-        for (i = 0; i < 10; i++)
-            printf("%f ", last_elements[i]);
+        printf("Elements: ");
+        for (i = 0; i < n; i++)
+            printf("%f ", full_b[i]);
         printf("\n");
+
+        free(full_b);
     }
+
 }
 
 void Parallel_vector_sum(double local_x[], double local_y[],
@@ -192,15 +199,20 @@ void Parallel_vector_sum(double local_x[], double local_y[],
 }
 
 void Parallel_dot_product(double local_x[], double local_y[],
-                          int local_dot_p, int local_n)
+                          double* local_dot_p, int local_n, MPI_Comm comm)
 {
     int i;
+    double local_sum = 0;
 
     for (i = 0; i < local_n; i++)
     {
-        local_dot_p += local_x[i] * local_y[i];
+        local_sum += local_x[i] * local_y[i];
     }
+
+    MPI_Reduce(&local_sum, local_dot_p, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
 }
+
+
 
 void Parallel_scalar_mult(double local_x[],
                           double local_scalar_mult[], int scalar, int local_n)
